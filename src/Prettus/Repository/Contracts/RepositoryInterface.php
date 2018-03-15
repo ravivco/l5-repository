@@ -173,6 +173,15 @@ interface RepositoryInterface
     public function delete($id);
 
     /**
+     * Delete multiple entities by given criteria.
+     *
+     * @param array $where
+     *
+     * @return int
+     */
+    public function deleteWhere(array $where);
+
+    /**
      * Order collection by a given column
      *
      * @param string $column
@@ -181,6 +190,25 @@ interface RepositoryInterface
      * @return $this
      */
     public function orderBy($column, $direction = 'asc');
+
+    /**
+     * Add an "order by" clause for a timestamp to the query.
+     *
+     * @param string $column
+     *
+     * @return $this
+     */
+    public function latest($column = 'created_at');
+
+    /**
+     * Add an "order by" clause for a timestamp to the query.
+     *
+     * @param string $column
+     *
+     * @return $this
+     */
+    public function oldest($column = 'created_at');
+
 
     /**
      * Load relations
