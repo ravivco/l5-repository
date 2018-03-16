@@ -339,10 +339,11 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     /**
      * Retrieve data array for populate field select
      *
-     * @param $column
+     * @param string $column
+     * @param null $key
      * @return mixed
      */
-    public function pluck($column)
+    public function pluck($column, $key = null)
     {
         $this->applyCriteria();
         $this->applyScope();
