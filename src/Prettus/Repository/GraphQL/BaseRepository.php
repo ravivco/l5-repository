@@ -17,6 +17,7 @@ use Prettus\Repository\Events\RepositoryEntityCreated;
 use Prettus\Repository\Events\RepositoryEntityDeleted;
 use Prettus\Repository\Events\RepositoryEntityUpdated;
 use Prettus\Repository\Exceptions\RepositoryException;
+use Prettus\Repository\Traits\ComparesVersionsTrait;
 use Prettus\Validator\Contracts\ValidatorInterface;
 use Prettus\Validator\Exceptions\ValidatorException;
 use GraphQLClient\HttpClient as GraphQLClient;
@@ -354,6 +355,33 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     }
 
     /**
+     * Sync relations
+     *
+     * @param $id
+     * @param $relation
+     * @param $attributes
+     * @param bool $detaching
+     * @return mixed
+     */
+    public function sync($id, $relation, $attributes, $detaching = true)
+    {
+        return $this->find($id)->{$relation}()->sync($attributes, $detaching);
+    }
+
+    /**
+     * SyncWithoutDetaching
+     *
+     * @param $id
+     * @param $relation
+     * @param $attributes
+     * @return mixed
+     */
+    public function syncWithoutDetaching($id, $relation, $attributes)
+    {
+        return $this->sync($id, $relation, $attributes, false);
+    }
+
+    /**
      * Retrieve all data of repository
      *
      * @param array $columns
@@ -405,6 +433,30 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         $results = $this->buildQuery(self::ALL.$this->type, $columns);
 
         return $this->parserResult($results);
+    }
+
+    /**
+     * Retrieve first data of repository, or return new Entity
+     *
+     * @param array $attributes
+     *
+     * @return mixed
+     */
+    public function firstOrNew(array $attributes = [])
+    {
+        // Not implemented yet on GraphCool
+    }
+
+    /**
+     * Retrieve first data of repository, or create new Entity
+     *
+     * @param array $attributes
+     *
+     * @return mixed
+     */
+    public function firstOrCreate(array $attributes = [])
+    {
+        // Not implemented yet on GraphCool
     }
 
     /**
@@ -714,6 +766,17 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      * @return $this
      */
     public function with($relations)
+    {
+        // Not implemented yet on GraphCool
+    }
+
+    /**
+     * Add subselect queries to count the relations.
+     *
+     * @param  mixed $relations
+     * @return $this
+     */
+    public function withCount($relations)
     {
         // Not implemented yet on GraphCool
     }
