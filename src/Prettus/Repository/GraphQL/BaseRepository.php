@@ -30,7 +30,7 @@ use QueryBuilder\Builder;
  */
 abstract class BaseRepository implements RepositoryInterface, RepositoryCriteriaInterface
 {
-    const ALL               = 'all';
+    const ALL               = '';
     const CREATE            = 'create';
     const UPDATE            = 'update';
     const DELETE            = 'delete';
@@ -79,7 +79,24 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     /**
      * @var array
      */
-    public $arguments;
+    public $arguments = null;
+
+    /**
+     * @var array
+     */
+    public $where_arguments = null;
+
+    /**
+     * @var array
+     */
+    public $data_arguments = null;
+
+    /**
+     * GraphQL type primary id
+     *
+     * @var string
+     */
+    public $type_id;
 
     /**
      * Collection of Criteria
@@ -124,6 +141,42 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      * @var \Closure
      */
     protected $scopeQuery = null;
+
+    /**
+     * limit for paginate
+     *
+     * @var int
+     */
+    public $limit;
+
+    /**
+     * Offset results for paginate
+     *
+     * @var int
+     */
+    public $offset;
+
+    /**
+     * Order by field => column
+     *
+     * @var array
+     */
+    public $order_by;
+
+    /**
+     * Response body columns (fields)
+     *
+     * @var array
+     */
+    public $response_fields = [];
+
+    /**
+     * Include query meta data in response
+     *
+     * @var bool
+     */
+    protected $include_meta = false;
+
 
     use ResponseFormatUtility;
 
@@ -202,7 +255,22 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function setType($type)
     {
-        $this->type = str_plural(ucfirst($type));
+        $this->type = $type;
+    }
+
+    public function singularQueryType()
+    {
+        return str_singular(lcfirst($this->type));
+    }
+
+    public function pluralQueryType()
+    {
+        return str_plural(lcfirst($this->type));
+    }
+
+    public function singularMutationType()
+    {
+        return str_singular(ucfirst($this->type));
     }
 
     /**
@@ -300,6 +368,42 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     }
 
     /**
+     * Set the limit property
+     *
+     * @param int $limit
+     */
+    public function setLimit(int $limit)
+    {
+        $this->limit = $limit;
+    }
+
+    /**
+     * Reset the limit property
+     */
+    public function resetLimit()
+    {
+        $this->limit = null;
+    }
+
+    /**
+     * Set the offset results property
+     *
+     * @param int $offset
+     */
+    public function setOffset(int $offset)
+    {
+        $this->offset = $offset;
+    }
+
+    /**
+     * Reset the offset property
+     */
+    public function resetOffset()
+    {
+        $this->offset = null;
+    }
+
+    /**
      * Get Searchable Fields
      *
      * @return array
@@ -321,6 +425,151 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         $this->scopeQuery = $scope;
 
         return $this;
+    }
+
+
+    /**
+     * @return array
+     */
+    protected function prepareArguments()
+    {
+        if (!empty($this->where_arguments)) {
+            $this->arguments['where'] = $this->where_arguments;
+        }
+
+        if (!empty($this->data_arguments)) {
+            $this->arguments['data'] = $this->data_arguments;
+        }
+
+        if (!empty($this->order_by)) {
+            $this->arguments['orderBy'] = $this->order_by;
+        }
+
+        if (!empty($this->limit)) {
+            $this->arguments['first'] = $this->limit;
+        }
+
+        if (!empty($this->offset)) {
+            $this->arguments['skip'] = $this->offset;
+        }
+
+        return $this->arguments;
+    }
+
+    /**
+     *  Set query arguments
+     *
+     * @param array $arguments
+     * @return mixed|void
+     */
+    public function setArguments(array $arguments)
+    {
+        if (!empty($arguments)) {
+            $this->arguments = $arguments;
+        }
+    }
+
+    /**
+     *  Set query arguments
+     *
+     * @param array $arguments
+     * @return mixed|void
+     */
+    public function setWhereArguments(array $arguments)
+    {
+        if (!empty($arguments)) {
+            $this->where_arguments = $arguments;
+        }
+    }
+
+    /**
+     *  Set query arguments
+     *
+     * @param array $arguments
+     * @return mixed|void
+     */
+    public function setDataArguments(array $arguments)
+    {
+        if (!empty($arguments)) {
+            $this->data_arguments = $arguments;
+        }
+    }
+
+    /**
+     * @return array
+     */
+    protected function getArguments()
+    {
+        return $this->prepareArguments();
+    }
+
+    /**
+     *  Set GraphQL Type id for query
+     *
+     * @param $id
+     * @return mixed|void
+     */
+    public function setTypeId($id)
+    {
+        if (!empty($id)) {
+            $this->type_id = $id;
+        }
+    }
+
+    /**
+     *  Get GraphQL Type id for query
+     *
+     * @return mixed
+     */
+    public function getTypeId()
+    {
+        return $this->type_id;
+    }
+
+    /**
+     * Get the response body
+     *
+     * @return array
+     */
+    public function getResponseFields()
+    {
+        if (!empty($this->response_fields)) {
+            return $this->response_fields;
+        }
+
+        return $this->getfields();
+    }
+
+    /**
+     * Set the response body
+     *
+     * @param array $response_fields
+     *
+     * @return mixed|void
+     */
+    public function setResponseFields(array $response_fields)
+    {
+        $this->response_fields = $response_fields;
+    }
+
+    /**
+     * Get if to include query meta data in response
+     *
+     * @return bool
+     */
+    public function isIncludeMeta()
+    {
+        return $this->include_meta;
+    }
+
+    /**
+     * Set if to include query meta data in response
+     *
+     * @param bool $include_meta
+     */
+    public function setIncludeMeta(bool $include_meta)
+    {
+        $this->include_meta = $include_meta;
     }
 
     /**
@@ -349,7 +598,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         $this->applyCriteria();
         $this->applyScope();
 
-        $results = $this->buildQuery(self::ALL.$this->type, $column);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $column);
 
         return $this->parserResult($results);
     }
@@ -390,14 +639,14 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function all($columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyCriteria();
         $this->applyScope();
 
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -409,16 +658,17 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      * @param array $filter | ['field' => 'value']
      * @param array $columns
      *
+     * @param int $number
      * @return mixed
      */
     public function first(array $filter, $columns = [], $number = 1)
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyCriteria();
         $this->applyScope();
+
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
 
         /*
          * Example
@@ -427,10 +677,10 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
          * For first -
          * [['isWhiteLabel' => 1], ['first' => 1]]
          */
-        $filter['first'] = $number; // first number of results
-        $this->arguments = ['filter' => $filter];
+        $this->setLimit($number); // first number of results
+        $this->setWhereArguments($filter);
 
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -462,21 +712,29 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     /**
      * Retrieve all data of repository, paginated
      *
-     * @param null   $limit
-     * @param array  $columns
-     * @param string $pageName
-     * @param string $method
-     *
+     * @param null $limit
+     * @param array $columns
+     * @param null $offset
      * @return mixed
+     *
      */
-    public function paginate($limit = null, $columns = ['*'], $pageName = 'page', $method = "paginate")
+    public function paginate($limit = null, $columns = [], $offset = null)
     {
         $this->applyCriteria();
-        $this->applyScope();
-        $limit = is_null($limit) ? config('repository.pagination.limit', 15) : $limit;
-        $results = $this->model->{$method}($limit, $columns, $pageName);
-        $results->appends(app('request')->query());
-        $this->resetModel();
+
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $limit = !is_null($limit) ? $limit : (!is_null($this->limit) ? $this->limit : config('repository.pagination.limit', 15));
+        $this->setLimit($limit);
+
+        $offset = !is_null($offset) ? $offset : (!is_null($this->offset) ? $this->offset : 0);
+        $this->setOffset($offset);
+
+        $this->setIncludeMeta(true);
+
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -489,9 +747,9 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      *
      * @return mixed
      */
-    public function simplePaginate($limit = null, $columns = ['*'])
+    public function simplePaginate($limit = null, $columns = [])
     {
-        return $this->paginate($limit, $columns, "simplePaginate");
+        return $this->paginate($limit, $columns);
     }
 
     /**
@@ -504,14 +762,15 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function find($id, $columns = [])
     {
+        $this->applyScope();
+        $this->applyCriteria();
+
         if (empty($columns)){
-            $columns = $this->model->getFields();
+            $columns = $this->getResponseFields();
         }
 
-        $this->applyScope();
-
-        $this->arguments = ['id' => $id];
-        $results = $this->buildQuery(str_singular($this->type), $columns);
+        $this->applyConditions(['id' => $id]);
+        $results = $this->buildQuery($this->singularQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -527,14 +786,14 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function findByField($field, $value = null, $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyScope();
 
-        $this->arguments = ['filter' => [$field => $value]];
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $this->setWhereArguments([$field => $value]);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -549,14 +808,14 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function findWhere(array $filter, $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyScope();
 
-        $this->arguments = ['filter' => $filter];
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $this->applyConditions($filter);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -572,15 +831,14 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function findWhereIn($field, array $values, $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyScope();
 
-        $field = $field.'_in';
-        $this->arguments = ['filter' => [$field => $values]];
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $this->applyConditions([$field => ['in', $values]]);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -596,15 +854,14 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function findWhereNotIn($field, array $values, $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyScope();
 
-        $field = $field.'_not_in';
-        $this->arguments = ['filter' => [$field => $values]];
-        $results = $this->buildQuery(self::ALL.$this->type, $columns);
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
+
+        $this->applyConditions([$field => ['not_in', $values]]);
+        $results = $this->buildQuery(self::ALL.$this->pluralQueryType(), $columns);
 
         return $this->parserResult($results);
     }
@@ -618,19 +875,18 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function create(array $attributes, $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         if (!is_null($this->validator)) {
             $this->validator->with($attributes)->passesOrFail(ValidatorInterface::RULE_CREATE);
         }
+        $this->applyCriteria();
 
-        $this->arguments = $attributes;
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
 
-        $result = $this->buildMutation(self::CREATE.$this->type, $columns);
+        $this->setDataArguments($attributes);
 
-        //event(new RepositoryEntityCreated($this, $result));
+        $result = $this->buildMutation(self::CREATE.$this->singularMutationType(), $columns);
 
         return $this->parserResult($result);
     }
@@ -645,20 +901,17 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function update(array $attributes, $id, $columns = [])
     {
+        $this->applyScope();
+        $this->applyCriteria();
+
         if (empty($columns)){
-            $columns = $this->model->getFields();
+            $columns = $this->getResponseFields();
         }
 
-        $this->applyScope();
-//
-//        if (!is_null($this->validator)) {
-//            $this->validator->with($attributes)->setId($id)->passesOrFail(ValidatorInterface::RULE_UPDATE);
-//        }
+        $this->setWhereArguments(['id' => $id]);
+        $this->setDataArguments($attributes);
 
-        $this->arguments = $attributes;
-        $this->arguments['id'] = $id;
-
-        $result = $this->buildMutation(self::UPDATE.str_singular($this->type), $columns);
+        $result = $this->buildMutation(self::UPDATE.$this->singularMutationType(), $columns);
 
         return $this->parserResult($result);
     }
@@ -673,11 +926,11 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function updateOrCreate(array $attributes, array $values = [], $columns = [])
     {
-        if (empty($columns)){
-            $columns = $this->model->getFields();
-        }
-
         $this->applyScope();
+
+        if (empty($columns)){
+            $columns = $this->getResponseFields();
+        }
 
         /********
          * Sample valid object
@@ -700,9 +953,9 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         }
          ********/
 
-        $this->arguments = $attributes;
+        $this->setArguments($attributes);
 
-        $result = $this->buildMutation(self::UPDATE_OR_CREATE.str_singular($this->type), $columns);
+        $result = $this->buildMutation(self::UPDATE_OR_CREATE.$this->singularMutationType(), $columns);
 
         return $this->parserResult($result);
     }
@@ -718,18 +971,9 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
     {
         $this->applyScope();
 
-//        $temporarySkipPresenter = $this->skipPresenter;
-//        $this->skipPresenter(true);
-//
-//        $model = $this->model->findOrFail($id);
-//        $originalModel = clone $model;
-//
-//        $this->skipPresenter($temporarySkipPresenter);
-//        $this->resetModel();
+        $this->setWhereArguments(['id' => $id]);
 
-        $this->arguments = ['id' => $id];
-
-        $result = $this->buildMutation(self::DELETE.$this->type, $this->model->getFields());
+        $result = $this->buildMutation(self::DELETE.$this->singularMutationType(), $this->getFields('id'));
 
         return $this->parserResult($result);
     }
@@ -803,7 +1047,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function hidden(array $fields)
     {
-        $this->model->setHidden($fields);
+        // Not implemented yet on GraphCool
 
         return $this;
     }
@@ -818,7 +1062,9 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function orderBy($column, $direction = 'asc')
     {
-        $this->model = $this->model->orderBy($column, $direction);
+        $direction = strtoupper($direction);
+
+        $this->order_by = 'ORDER_'.$column.'_'.$direction;
 
         return $this;
     }
@@ -830,7 +1076,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      *
      * @return $this
      */
-    public function latest($column = 'created_at')
+    public function latest($column = 'createdAt')
     {
         return $this->orderBy($column, 'desc');
     }
@@ -842,7 +1088,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      *
      * @return $this
      */
-    public function oldest($column = 'created_at')
+    public function oldest($column = 'createdAt')
     {
         return $this->orderBy($column, 'asc');
     }
@@ -857,7 +1103,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function visible(array $fields)
     {
-        $this->model->setVisible($fields);
+        $this->setResponseFields($fields);
 
         return $this;
     }
@@ -926,11 +1172,7 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     public function getByCriteria(CriteriaInterface $criteria)
     {
-        $this->model = $criteria->apply($this->model, $this);
-        $results = $this->model->get();
-        $this->resetModel();
-
-        return $this->parserResult($results);
+        // Not implemented yet on GraphCool
     }
 
     /**
@@ -978,8 +1220,6 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      */
     protected function applyScope()
     {
-        $this->arguments = null;
-
         if (isset($this->scopeQuery) && is_callable($this->scopeQuery)) {
             $callback = $this->scopeQuery;
             $this->model = $callback($this->model);
@@ -1002,13 +1242,12 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         $criteria = $this->getCriteria();
 
         if ($criteria) {
-            if ($criteria instanceof CriteriaInterface) {
-                $this->arguments = ['filter' => $criteria->apply($this->model, $this)];
-                return $this;
+            foreach ($criteria as $c) {
+                if ($c instanceof CriteriaInterface) {
+                    $c->apply($this->model, $this);
+                }
             }
         }
-
-        $this->arguments = null;
 
         return $this;
     }
@@ -1019,16 +1258,92 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      * @param array $where
      * @return void
      */
-    protected function applyConditions(array $where)
+    public function applyConditions(array $where)
     {
+        $conditions = [];
+
         foreach ($where as $field => $value) {
+
+            if(stripos($field, '.')) {
+                $conditions = array_merge($conditions, array_undot([$field => $value]));
+
+                continue;
+            }
+
+            if($field === 'OR') {
+                $conditions[$field] = $this->buildOrCondition($value);
+
+                continue;
+            }
+
             if (is_array($value)) {
-                list($field, $condition, $val) = $value;
-                $this->model = $this->model->where($field, $condition, $val);
+                list($condition, $val) = $value;
+                $conditions[$this->processConditions($field, $condition)] = $val;
             } else {
-                $this->model = $this->model->where($field, '=', $value);
+                $conditions[$field] = $value;
+            }
+
+        }
+
+        $this->setWhereArguments($conditions);
+    }
+
+    private function buildOrCondition(array $where)
+    {
+        $conditions = null;
+
+        foreach ($where['keys'] as $item) {
+            if (is_array($where['value'])) {
+                list($condition, $val) = $where['value'];
+                $conditions[][$this->processConditions($item, $condition)] = $val;
+            } else {
+                $conditions[][$item] = $where['value'];
             }
         }
+
+        return $conditions;
+    }
+
+    private function processConditions($field, $condition = '=')
+    {
+        $generated_field = $field;
+
+        switch ($condition) {
+            case 'like':
+                $generated_field = $field.'_contains';
+                break;
+
+            case '<>':
+                $generated_field = $field.'_not';
+                break;
+
+            case 'in':
+                $generated_field = $field.'_in';
+                break;
+
+            case 'not_in':
+                $generated_field = $field.'_not_in';
+                break;
+
+            case '<':
+                $generated_field = $field.'_lt';
+                break;
+
+            case '<=':
+                $generated_field = $field.'_lte';
+                break;
+
+            case '>':
+                $generated_field = $field.'_gt';
+                break;
+
+            case '>=':
+                $generated_field = $field.'_gte';
+                break;
+
+        }
+
+        return $generated_field;
     }
 
     /**
@@ -1080,18 +1395,24 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
      * @param $name
      * @param array $body
      * @return mixed
-     * @throws DatableHttpException
      */
     public function buildQuery($name, $body = [])
     {
         $this->query_builder->resetArguments();
         $this->query_builder->resetName();
         $this->query_builder->resetBody();
+        $this->query_builder->resetMeta();
 
         $this->query_builder->name($name)->body($body);
 
-        if (!is_null($this->arguments)) {
-            $this->query_builder->arguments($this->arguments);
+        if (!is_null($this->getArguments())) {
+            $this->query_builder->arguments($this->getArguments());
+        }
+
+        if ($this->isIncludeMeta()) {
+            $this->query_builder->meta();
+
+            $this->setIncludeMeta(false);
         }
 
         $this->query_builder->build();
@@ -1118,8 +1439,8 @@ abstract class BaseRepository implements RepositoryInterface, RepositoryCriteria
         $name = str_singular($name);
         $this->mutation_builder->name($name)->body($body);
 
-        if (!is_null($this->arguments)) {
-            $this->mutation_builder->arguments($this->arguments);
+        if (!is_null($this->getArguments())) {
+            $this->mutation_builder->arguments($this->getArguments());
         }
 
         try {

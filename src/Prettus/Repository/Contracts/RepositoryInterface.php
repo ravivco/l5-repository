@@ -313,4 +313,22 @@ interface RepositoryInterface
      * @return mixed
      */
     public function firstOrCreate(array $attributes = []);
+
+    /**
+     * Set query arguments without model dependency
+     *
+     * @param array $arguments
+     *
+     * @return mixed
+     */
+    public function setArguments(array $arguments);
+
+    /**
+     * Set query response fields (columns)
+     *
+     * @param array $response_fields
+     *
+     * @return mixed
+     */
+    public function setResponseFields(array $response_fields);
 }

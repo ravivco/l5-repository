@@ -1,4 +1,11 @@
 <?php
+/**
+ * Created by PhpStorm.
+ * User: DevTeam5
+ * Date: 22/03/2018
+ * Time: 4:01 PM
+ */
+
 namespace Prettus\Repository\Criteria;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -7,19 +14,20 @@ use Illuminate\Http\Request;
 use Prettus\Repository\Contracts\CriteriaInterface;
 use Prettus\Repository\Contracts\RepositoryInterface;
 
-/**
- * Class RequestCriteria
- * @package Prettus\Repository\Criteria
- * @author Anderson Andrade <contato@andersonandra.de>
- */
-class RequestCriteria implements CriteriaInterface
+
+class RequestCriteriaGraphQL implements CriteriaInterface
 {
     /**
      * @var \Illuminate\Http\Request
      */
     protected $request;
 
+    private $filter_arguments = [];
+
+    private $response_fields = [];
+
     public function __construct(Request $request)
+
     {
         $this->request = $request;
     }
@@ -46,6 +54,7 @@ class RequestCriteria implements CriteriaInterface
         $searchJoin = $this->request->get(config('repository.criteria.params.searchJoin', 'searchJoin'), null);
         $sortedBy = !empty($sortedBy) ? $sortedBy : 'asc';
         $limit = $this->request->get('limit');
+        $offset = $this->request->get('offset');
 
         if ($search && is_array($fieldsSearchable) && count($fieldsSearchable)) {
 
@@ -56,113 +65,47 @@ class RequestCriteria implements CriteriaInterface
             $search = $this->parserSearchValue($search);
             $modelForceAndWhere = strtolower($searchJoin) === 'and';
 
-            $model = $model->where(function ($query) use ($fields, $search, $searchData, $isFirstField, $modelForceAndWhere) {
-                /** @var Builder $query */
+            /** @var Builder $query */
 
-                foreach ($fields as $field => $condition) {
+            foreach ($fields as $field => $condition) {
 
-                    if (is_numeric($field)) {
-                        $field = $condition;
-                        $condition = "=";
-                    }
-
-                    $value = null;
-
-                    $condition = trim(strtolower($condition));
-
-                    if (isset($searchData[$field])) {
-                        $value = ($condition == "like" || $condition == "ilike") ? "%{$searchData[$field]}%" : $searchData[$field];
-                    } else {
-                        if (!is_null($search)) {
-                            $value = ($condition == "like" || $condition == "ilike") ? "%{$search}%" : $search;
-                        }
-                    }
-
-                    $relation = null;
-                    if(stripos($field, '.')) {
-                        $explode = explode('.', $field);
-                        $field = array_pop($explode);
-                        $relation = implode('.', $explode);
-                    }
-                    $modelTableName = $query->getModel()->getTable();
-                    if ( $isFirstField || $modelForceAndWhere ) {
-                        if (!is_null($value)) {
-                            if(!is_null($relation)) {
-                                $query->whereHas($relation, function($query) use($field,$condition,$value) {
-                                    $query->where($field,$condition,$value);
-                                });
-                            } else {
-                                $query->where($modelTableName.'.'.$field,$condition,$value);
-                            }
-                            $isFirstField = false;
-                        }
-                    } else {
-                        if (!is_null($value)) {
-                            if(!is_null($relation)) {
-                                $query->orWhereHas($relation, function($query) use($field,$condition,$value) {
-                                    $query->where($field,$condition,$value);
-                                });
-                            } else {
-                                $query->orWhere($modelTableName.'.'.$field, $condition, $value);
-                            }
-                        }
-                    }
+                if (is_numeric($field)) {
+                    $field = $condition;
+                    $condition = "=";
                 }
-            });
+
+                $value = null;
+
+                $condition = trim(strtolower($condition));
+
+                if (isset($searchData[$field])) {
+                    $value = $searchData[$field];
+                }
+
+                if (!is_null($value)) {
+                    $this->filter_arguments[$field] = [$condition, $value];
+                }
+            }
+
+            $repository->applyConditions($this->filter_arguments);
         }
 
         if (isset($orderBy) && !empty($orderBy)) {
-            $split = explode('|', $orderBy);
-            if(count($split) > 1) {
-                /*
-                 * ex.
-                 * products|description -> join products on current_table.product_id = products.id order by description
-                 *
-                 * products:custom_id|products.description -> join products on current_table.custom_id = products.id order
-                 * by products.description (in case both tables have same column name)
-                 */
-                $table = $model->getModel()->getTable();
-                $sortTable = $split[0];
-                $sortColumn = $split[1];
-
-                $split = explode(':', $sortTable);
-                if(count($split) > 1) {
-                    $sortTable = $split[0];
-                    $keyName = $table.'.'.$split[1];
-                } else {
-                    /*
-                     * If you do not define which column to use as a joining column on current table, it will
-                     * use a singular of a join table appended with _id
-                     *
-                     * ex.
-                     * products -> product_id
-                     */
-                    $prefix = str_singular($sortTable);
-                    $keyName = $table.'.'.$prefix.'_id';
-                }
-
-                $model = $model
-                    ->leftJoin($sortTable, $keyName, '=', $sortTable.'.id')
-                    ->orderBy($sortColumn, $sortedBy)
-                    ->addSelect($table.'.*');
-            } else {
-                $split = explode(',', $orderBy);
-                foreach ($split as $order) {
-                    $model = $model->orderBy($orderBy, $sortedBy);
-                }
-            }
+            $repository->orderBy($orderBy, $sortedBy);
         }
 
         if (isset($filter) && !empty($filter)) {
-            if (is_string($filter)) {
-                $filter = explode(';', $filter);
-                $filter = array_map(function($val) use ($repository) {
-                    return $repository[$val];
-                    }, $filter
-                );
-            }
 
-            $model = $model->select($filter);
+            if (is_string($filter)) {
+                if (is_array($repository->getFields($filter))) {
+                    $this->response_fields = $repository->getFields($filter);
+                } else {
+                    $this->response_fields = explode(';', $filter);
+                }
+
+                $repository->setResponseFields($this->response_fields);
+
+            }
         }
 
         if ($with) {
@@ -172,6 +115,10 @@ class RequestCriteria implements CriteriaInterface
 
         if (isset($limit) && !empty($limit)) {
             $repository->setLimit($limit);
+        }
+
+        if (isset($offset) && !empty($offset)) {
+            $repository->setOffset($offset);
         }
 
         return $model;
@@ -192,6 +139,9 @@ class RequestCriteria implements CriteriaInterface
             foreach ($fields as $row) {
                 try {
                     list($field, $value) = explode(':', $row);
+                    if (string_is_boolean($value)) {
+                        $value = string_to_boolean($value);
+                    }
                     $searchData[$field] = $value;
                 } catch (\Exception $e) {
                     //Surround offset error
@@ -256,9 +206,8 @@ class RequestCriteria implements CriteriaInterface
                     $field = $condition;
                     $condition = "=";
                 }
-                if (in_array($field, $searchFields)) {
-                    $fields[$field] = $condition;
-                }
+
+                $fields[$field] = $condition;
             }
 
             if (count($fields) == 0) {
